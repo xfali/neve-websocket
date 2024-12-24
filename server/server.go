@@ -34,7 +34,9 @@ type ConnectListener interface {
 type Opt func(*Server)
 
 type Server struct {
-	logger xlog.Logger
+	logger   xlog.Logger
+	stopCtx  context.Context
+	stopFunc context.CancelFunc
 
 	upgrader *websocket.Upgrader
 
@@ -67,11 +69,21 @@ func NewServer(opts ...Opt) *Server {
 			return true
 		},
 	}
+	ret.stopCtx, ret.stopFunc = context.WithCancel(context.Background())
 
 	for _, opt := range opts {
 		opt(ret)
 	}
 	return ret
+}
+
+func (o *Server) Close() error {
+	o.stopFunc()
+	return nil
+}
+
+func (o *Server) BeanDestroy() error {
+	return o.Close()
 }
 
 func (o *Server) CreateMessageChannel(ctx context.Context) (websocket2.MessageChannel, error) {
@@ -110,7 +122,7 @@ func (o *Server) Ws(w http.ResponseWriter, r *http.Request) {
 	}
 
 	o.notifyConnect(r, ch)
-	err = ch.Listen(context.Background(), conn)
+	err = ch.Listen(o.stopCtx, conn)
 	if err != nil {
 		o.errorProcessor(w, err)
 		return
@@ -148,5 +160,11 @@ func (o opts) SetErrorWriter(errorProcessor ErrorWriter) Opt {
 func (o opts) SetMessageChannelFactory(channelFac websocket2.MessageChannelFactory) Opt {
 	return func(server *Server) {
 		server.channelFac = channelFac
+	}
+}
+
+func (o opts) AddConnectListener(listeners ...ConnectListener) Opt {
+	return func(server *Server) {
+		server.connListeners = append(server.connListeners, listeners...)
 	}
 }
