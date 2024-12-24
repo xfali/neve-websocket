@@ -1,0 +1,29 @@
+This product includes software developed at
+[neve-websocket] (https://github.com/xfali/neve-websocket)
+
+====================================================================
+NOTICE file for neve-websocket
+
+This NOTICE file is provided with the Apache License 2.0 distribution of
+neve-websocket
+
+Copyright (C) 2024, Xiongfa Li.
+All rights reserved.
+
+This product includes contributions from:
+  - Xiongfa Li (li.xiongfa@qq.com)
+
+This software is distributed under the terms of the Apache License 2.0.
+Refer to the LICENSE file for more details.
+
+====================================================================
+Third-party libraries and components:
+
+This product makes use of the following third-party libraries:
+
+- github.com/gorilla/websocket v1.5.3 - [License](https://github.com/gorilla/websocket/LICENSE)
+  Provide websocket related functions.
+
+- github.com/gin-gonic/gin v1.6.3 - [License](https://github.com/gin-gonic/gin/LICENSE)
+
+For the complete list, please see the file [third-party-licenses.txt]
