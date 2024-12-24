@@ -31,9 +31,9 @@ type ConnectListener interface {
 	OnNewConnect(ctx context.Context, r *http.Request, channel websocket2.MessageChannel)
 }
 
-type Opt func(*Server)
+type Opt func(*Handler)
 
-type Server struct {
+type Handler struct {
 	logger   xlog.Logger
 	stopCtx  context.Context
 	stopFunc context.CancelFunc
@@ -53,8 +53,8 @@ func DefaultErrorWriter(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
 
-func NewHandler(opts ...Opt) *Server {
-	ret := &Server{
+func NewHandler(opts ...Opt) *Handler {
+	ret := &Handler{
 		logger: xlog.GetLogger(),
 		responseHeaderReader: func(r *http.Request) http.Header {
 			return nil
@@ -77,27 +77,27 @@ func NewHandler(opts ...Opt) *Server {
 	return ret
 }
 
-func (o *Server) Close() error {
+func (o *Handler) Close() error {
 	o.stopFunc()
 	return nil
 }
 
-func (o *Server) BeanDestroy() error {
+func (o *Handler) BeanDestroy() error {
 	return o.Close()
 }
 
-func (o *Server) CreateMessageChannel(ctx context.Context) (websocket2.MessageChannel, error) {
+func (o *Handler) CreateMessageChannel(ctx context.Context) (websocket2.MessageChannel, error) {
 	return websocket2.NewMessageChannel(make(chan []byte, 4096), make(chan []byte, 4096)), nil
 }
 
-func (o *Server) RegisterConnectListener(listener ConnectListener) {
+func (o *Handler) RegisterConnectListener(listener ...ConnectListener) {
 	o.connListenerLock.Lock()
 	defer o.connListenerLock.Unlock()
 
-	o.connListeners = append(o.connListeners, listener)
+	o.connListeners = append(o.connListeners, listener...)
 }
 
-func (o *Server) notifyConnect(r *http.Request, ch websocket2.MessageChannel) {
+func (o *Handler) notifyConnect(r *http.Request, ch websocket2.MessageChannel) {
 	o.connListenerLock.RLock()
 	defer o.connListenerLock.RUnlock()
 
@@ -106,11 +106,11 @@ func (o *Server) notifyConnect(r *http.Request, ch websocket2.MessageChannel) {
 	}
 }
 
-func (o *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (o *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	o.Ws(w, r)
 }
 
-func (o *Server) Ws(w http.ResponseWriter, r *http.Request) {
+func (o *Handler) Ws(w http.ResponseWriter, r *http.Request) {
 	conn, err := o.upgrader.Upgrade(w, r, o.responseHeaderReader(r))
 	if err != nil {
 		o.errorProcessor(w, err)
@@ -133,7 +133,7 @@ func (o *Server) Ws(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *Server) errorWriter(w http.ResponseWriter, err error) {
+func (o *Handler) errorWriter(w http.ResponseWriter, err error) {
 	o.logger.Errorln(err)
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
@@ -144,31 +144,31 @@ type opts struct {
 var Opts opts
 
 func (o opts) SetUpgrader(upgrader *websocket.Upgrader) Opt {
-	return func(server *Server) {
+	return func(server *Handler) {
 		server.upgrader = upgrader
 	}
 }
 
 func (o opts) SetResponseHeaderReader(responseHeaderReader ResponseHeaderReader) Opt {
-	return func(server *Server) {
+	return func(server *Handler) {
 		server.responseHeaderReader = responseHeaderReader
 	}
 }
 
 func (o opts) SetErrorWriter(errorProcessor ErrorWriter) Opt {
-	return func(server *Server) {
+	return func(server *Handler) {
 		server.errorProcessor = errorProcessor
 	}
 }
 
 func (o opts) SetMessageChannelFactory(channelFac websocket2.MessageChannelFactory) Opt {
-	return func(server *Server) {
+	return func(server *Handler) {
 		server.channelFac = channelFac
 	}
 }
 
 func (o opts) AddConnectListener(listeners ...ConnectListener) Opt {
-	return func(server *Server) {
+	return func(server *Handler) {
 		server.connListeners = append(server.connListeners, listeners...)
 	}
 }

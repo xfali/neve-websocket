@@ -60,23 +60,27 @@ func (o *defaultChannel) Listen(ctx context.Context, conn *websocket.Conn) error
 	o.conn = connect
 
 	wait := sync.WaitGroup{}
-	wait.Add(1)
-	go func() {
-		defer wait.Done()
-		err := connect.WriteLoop()
-		if err != nil {
-			o.logger.Errorln("Write error: ", err)
-		}
-	}()
+	if o.writeChan != nil {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			err := connect.WriteLoop()
+			if err != nil {
+				o.logger.Errorln("Write error: ", err)
+			}
+		}()
+	}
 
-	wait.Add(1)
-	go func() {
-		defer wait.Done()
-		err := connect.ReadLoop()
-		if err != nil {
-			o.logger.Errorln("Read error: ", err)
-		}
-	}()
+	if o.readChan != nil {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			err := connect.ReadLoop()
+			if err != nil {
+				o.logger.Errorln("Read error: ", err)
+			}
+		}()
+	}
 
 	wait.Wait()
 	return nil
