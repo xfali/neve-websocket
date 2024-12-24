@@ -28,7 +28,7 @@ import (
 
 type RequestHeaderReader func(endpoint string) http.Header
 type ConnectListener interface {
-	OnNewConnect(endpoint string, channel websocket2.MessageChannel)
+	OnNewConnect(ctx context.Context, endpoint string, channel websocket2.MessageChannel)
 }
 
 type Opt func(*Client)
@@ -94,7 +94,7 @@ func (o *Client) notifyConnect(endpoint string, ch websocket2.MessageChannel) {
 	defer o.connListenerLock.RUnlock()
 
 	for _, l := range o.connListeners {
-		l.OnNewConnect(endpoint, ch)
+		l.OnNewConnect(o.stopCtx, endpoint, ch)
 	}
 }
 

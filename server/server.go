@@ -28,7 +28,7 @@ import (
 type ResponseHeaderReader func(r *http.Request) http.Header
 type ErrorWriter func(w http.ResponseWriter, err error)
 type ConnectListener interface {
-	OnNewConnect(r *http.Request, channel websocket2.MessageChannel)
+	OnNewConnect(ctx context.Context, r *http.Request, channel websocket2.MessageChannel)
 }
 
 type Opt func(*Server)
@@ -53,7 +53,7 @@ func DefaultErrorWriter(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
 
-func NewServer(opts ...Opt) *Server {
+func NewHandler(opts ...Opt) *Server {
 	ret := &Server{
 		logger: xlog.GetLogger(),
 		responseHeaderReader: func(r *http.Request) http.Header {
@@ -102,8 +102,12 @@ func (o *Server) notifyConnect(r *http.Request, ch websocket2.MessageChannel) {
 	defer o.connListenerLock.RUnlock()
 
 	for _, l := range o.connListeners {
-		l.OnNewConnect(r, ch)
+		l.OnNewConnect(o.stopCtx, r, ch)
 	}
+}
+
+func (o *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	o.Ws(w, r)
 }
 
 func (o *Server) Ws(w http.ResponseWriter, r *http.Request) {
